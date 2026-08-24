@@ -3,9 +3,9 @@
     android:orientation="vertical"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
-    android:paddingTop="4px">	
+    android:paddingTop="?attr/actionBarSize">	
 
-	<include android:id="@+id/search" layout="@layout/search" />
+	<include android:id="@+id/search" layout="@layout/search" android:layout_marginTop="?attr/actionBarSize" />
 
 	<ListView
 		android:id="@android:id/list"

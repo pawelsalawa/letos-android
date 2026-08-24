@@ -1,26 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
-    android:layout_width="wrap_content"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingTop="4px">
+    android:padding="8dp"
+    android:paddingTop="4dp">
 
-	<ImageButton
-		android:id="@+id/searchButton"
-		android:text="Search"
-		android:onClick="search"
-		android:layout_alignParentTop="true"
-		android:layout_alignParentRight="true"
-		android:layout_width="70px"
-		android:layout_height="wrap_content"
-		android:src="@drawable/search"/>
-	
-	<EditText
-		android:id="@+id/searchText"
-		android:layout_alignParentTop="true"
-		android:layout_alignParentLeft="true"
-		android:layout_toLeftOf="@id/searchButton"
-		android:layout_width="fill_parent"
-		android:layout_height="wrap_content"/>
+    <!-- Search field with native EditText styling -->
+    <EditText
+        android:id="@+id/searchText"
+        style="?attr/editTextStyle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_toStartOf="@+id/searchButton"
+        android:layout_alignParentTop="true"
+        android:hint="Search"
+        android:imeOptions="actionSearch"
+        android:inputType="text"
+        android:padding="8dp" />
+
+    <!-- Icon button styled as a compact action button -->
+    <ImageButton
+        android:id="@+id/searchButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        android:layout_marginStart="8dp"
+        android:contentDescription="Search"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:scaleType="center"
+        android:src="@drawable/search" />
 
 </RelativeLayout>

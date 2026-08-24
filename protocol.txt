@@ -43,4 +43,4 @@ From QUERY:
 
 
 -----------------------------------------------------------------
-./adb shell run-as pl.com.salsoft.employeedirectory sqlite3 -csv -separator , -batch -nullvalue _SQLITESTUDIO_NULL_ databases/employee_directory2 'select * from employee;'
+./adb shell run-as samples.employeedirectory sqlite3 -csv -separator , -batch -nullvalue _LETOS_NULL_ databases/employee_directory2 'select * from employee;'

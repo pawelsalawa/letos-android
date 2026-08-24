@@ -3,12 +3,12 @@ plugins {
 }
 
 android {
-    namespace 'samples.employeedirectory'
+    namespace 'org.letos.letosremote.demo'
     compileSdk 35
     buildToolsVersion '35.0.0'
 
     defaultConfig {
-        applicationId "samples.employeedirectory"
+        applicationId "org.letos.letosremote.demo"
         minSdk 21
         targetSdk 35
         versionCode 1
@@ -20,10 +20,6 @@ android {
         targetCompatibility JavaVersion.VERSION_11
     }
 
-    lint {
-        abortOnError false
-    }
-
     buildTypes {
         release {
             minifyEnabled false
@@ -33,7 +29,6 @@ android {
 }
 
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation project(':letosremote')
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'org.letos:letosremote:1.0'
 }

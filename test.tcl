@@ -2,8 +2,8 @@
 
 package require json
 
-#set IP "localhost"
-set IP "192.168.0.17"
+set IP "localhost"
+#set IP "192.168.0.17"
 set PORT 12121
 
 if {$argc != 1} {

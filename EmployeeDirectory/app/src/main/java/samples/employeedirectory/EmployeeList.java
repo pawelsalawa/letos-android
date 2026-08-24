@@ -11,7 +11,7 @@ import android.widget.ListAdapter;
 import android.widget.SimpleCursorAdapter;
 import android.widget.ListView;
 
-import pl.com.salsoft.sqlitestudioremote.SQLiteStudioService;
+import org.letos.letosremote.LetosService;
 
 public class EmployeeList extends ListActivity {
 
@@ -24,15 +24,26 @@ public class EmployeeList extends ListActivity {
     	super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
         searchText = (EditText) findViewById(R.id.searchText);
+        android.util.Log.d("EDebug","searchText found: " + (searchText!=null));
+        searchText.post(new Runnable() {
+            @Override
+            public void run() {
+                int[] loc = new int[2];
+                searchText.getLocationOnScreen(loc);
+                android.util.Log.d("EDebug", String.format("searchText vis=%d w=%d h=%d x=%d y=%d bg=%s",
+                        searchText.getVisibility(), searchText.getWidth(), searchText.getHeight(), loc[0], loc[1],
+                        searchText.getBackground()!=null ? "yes" : "no"));
+            }
+        });
     	db = (new DatabaseHelper(this)).getWritableDatabase();
 
-        //SQLiteStudioService.instance().setPassword("aaa");
-        SQLiteStudioService.instance().start(this);
+        //LetosService.instance().setPassword("aaa");
+        LetosService.instance().start(this);
     }
 
     @Override
     public void onDestroy() {
-        SQLiteStudioService.instance().stop();
+        LetosService.instance().stop();
         super.onDestroy();
     }
     

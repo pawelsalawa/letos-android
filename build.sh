@@ -1,4 +1,1 @@
-. config.sh
-
-cd SQLiteStudioRemoteProject && ./gradlew assemble && cd .. && \
-cp SQLiteStudioRemoteProject/sqlitestudioremote/build/intermediates/bundles/release/classes.jar ./SQLiteStudioRemote.jar
+cd LetosRemoteProject && ./gradlew letosremote:assembleRelease letosremote:publishReleasePublicationToMavenLocal && ls -l letosremote/build/outputs/aar/letosremote-release.aar && cd ..
