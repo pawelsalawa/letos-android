@@ -24,21 +24,26 @@ public class EmployeeList extends ListActivity {
     	super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
         searchText = (EditText) findViewById(R.id.searchText);
-        android.util.Log.d("EDebug","searchText found: " + (searchText!=null));
-        searchText.post(new Runnable() {
-            @Override
-            public void run() {
-                int[] loc = new int[2];
-                searchText.getLocationOnScreen(loc);
-                android.util.Log.d("EDebug", String.format("searchText vis=%d w=%d h=%d x=%d y=%d bg=%s",
-                        searchText.getVisibility(), searchText.getWidth(), searchText.getHeight(), loc[0], loc[1],
-                        searchText.getBackground()!=null ? "yes" : "no"));
-            }
-        });
     	db = (new DatabaseHelper(this)).getWritableDatabase();
 
         //LetosService.instance().setPassword("aaa");
         LetosService.instance().start(this);
+        // ensure click listener is set (onClick in XML may not be resolved reliably on some devices)
+        try {
+            android.view.View btn = findViewById(R.id.searchButton);
+            if (btn != null) {
+                btn.setOnClickListener(new android.view.View.OnClickListener() {
+                    @Override
+                    public void onClick(android.view.View v) {
+                        search(v);
+                    }
+                });
+            } else {
+            // no-op if button not found
+            }
+        } catch (Throwable t) {
+            // ignore listener attachment errors
+        }
     }
 
     @Override
@@ -55,16 +60,17 @@ public class EmployeeList extends ListActivity {
     }
     
     public void search(View view) {
-    	// || is the concatenation operation in SQLite
-		cursor = db.rawQuery("SELECT _id, firstName, lastName, title FROM employee WHERE firstName || ' ' || lastName LIKE ?", 
-						new String[]{"%" + searchText.getText().toString() + "%"});
-		adapter = new SimpleCursorAdapter(
-				this, 
-				R.layout.employee_list_item, 
-				cursor, 
-				new String[] {"firstName", "lastName", "title"}, 
-				new int[] {R.id.firstName, R.id.lastName, R.id.title});
-		setListAdapter(adapter);
+        // Simple search by full name
+        String term = searchText.getText().toString();
+        cursor = db.rawQuery("SELECT _id, firstName, lastName, title FROM employee WHERE firstName || ' ' || lastName LIKE ?", new String[]{"%" + term + "%"});
+        adapter = new SimpleCursorAdapter(
+                this,
+                R.layout.employee_list_item,
+                cursor,
+                new String[] {"firstName", "lastName", "title"},
+                new int[] {R.id.firstName, R.id.lastName, R.id.title},
+                0);
+        setListAdapter(adapter);
     }
     
 }

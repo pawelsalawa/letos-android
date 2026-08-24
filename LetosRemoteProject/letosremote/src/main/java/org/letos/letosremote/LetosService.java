@@ -24,6 +24,7 @@ public class LetosService extends Service {
 
     private boolean running = false;
     private int port = DEFAULT_PORT;
+    private String ipAddress;
     private String password;
     private List<String> ipBlackList = new ArrayList<>();
     private List<String> ipWhiteList = new ArrayList<>();
@@ -35,6 +36,7 @@ public class LetosService extends Service {
 
         listener = new LetosListener(context);
         listener.setPort(port);
+        listener.setIpAddress(ipAddress);
         listener.setPassword(password);
         listener.setIpBlackList(ipBlackList);
         listener.setIpWhiteList(ipWhiteList);
@@ -91,7 +93,7 @@ public class LetosService extends Service {
     }
 
     public void setIpWhiteList(String... ip) {
-        ipBlackList.clear();
+        ipWhiteList.clear();
         for (String singleIp : ip) {
             ipWhiteList.add(singleIp);
         }
@@ -103,5 +105,9 @@ public class LetosService extends Service {
 
     public boolean isRunning() {
         return running;
+    }
+
+    public void setIpAddress(String ipAddress) {
+        this.ipAddress = ipAddress;
     }
 }

@@ -31,6 +31,7 @@ public class LetosListener implements Runnable, ClientJobContainer {
     private BlockingDeque<Runnable> jobsQueue;
     private List<ClientHandler> clientJobs;
     private Context context;
+    private String ipAddress;
     private String password;
     private List<String> ipWhiteList;
     private List<String> ipBlackList;
@@ -96,8 +97,12 @@ public class LetosListener implements Runnable, ClientJobContainer {
 
     private boolean init() {
         try {
-            serverSocket = new ServerSocket();
-            serverSocket.bind(new InetSocketAddress("0.0.0.0", port), 5);
+            if (ipAddress != null && !ipAddress.isEmpty()) {
+                serverSocket = new ServerSocket();
+                serverSocket.bind(new InetSocketAddress(ipAddress, port), 5);
+            } else {
+                serverSocket = new ServerSocket(port, 5);
+            }
             serverSocket.setSoTimeout(interval);
         } catch (IOException e) {
             Log.e(Utils.LOG_TAG, "Error while opening listening socket: "+e.getMessage(), e);
@@ -126,5 +131,9 @@ public class LetosListener implements Runnable, ClientJobContainer {
 
     public void setIpBlackList(List<String> ipBlackList) {
         this.ipBlackList = ipBlackList;
+    }
+
+    public void setIpAddress(String ipAddress) {
+        this.ipAddress = ipAddress;
     }
 }
