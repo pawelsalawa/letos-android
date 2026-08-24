@@ -13,6 +13,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.net.InetSocketAddress;
 
 import org.letos.letosremote.LetosService;
 
@@ -95,7 +96,8 @@ public class LetosListener implements Runnable, ClientJobContainer {
 
     private boolean init() {
         try {
-            serverSocket = new ServerSocket(port, 5);
+            serverSocket = new ServerSocket();
+            serverSocket.bind(new InetSocketAddress("0.0.0.0", port), 5);
             serverSocket.setSoTimeout(interval);
         } catch (IOException e) {
             Log.e(Utils.LOG_TAG, "Error while opening listening socket: "+e.getMessage(), e);
