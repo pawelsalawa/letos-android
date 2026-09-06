@@ -1,7 +1,6 @@
 plugins {
     id 'com.android.library'
     id 'com.vanniktech.maven.publish'
-    id 'signing'
 }
 
 android {
@@ -73,15 +72,5 @@ mavenPublishing {
             connection = 'scm:git:https://github.com/pawelsalawa/letos-android.git'
             developerConnection = 'scm:git:ssh://git@github.com/pawelsalawa/letos-android.git'
         }
-    }
-}
-
-if (!isLocalPublish) {
-    signing {
-        useInMemoryPgpKeys(
-                providers.gradleProperty('signing.key').orNull ?: providers.environmentVariable('SIGNING_KEY').orNull,
-                providers.gradleProperty('signing.password').orNull ?: providers.environmentVariable('SIGNING_PASSWORD').orNull
-        )
-        sign(publishing.publications)
     }
 }
