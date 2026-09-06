@@ -24,14 +24,8 @@ jobs:
       - name: Publish letosremote to Maven Central
         working-directory: LetosRemoteProject
         env:
-          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
-          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
-          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
-        run: >
-          ./gradlew
-          -PmavenCentralUsername=${{ secrets.MAVEN_CENTRAL_USERNAME }}
-          -PmavenCentralPassword=${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-          -Psigning.key=${{ secrets.SIGNING_KEY }}
-          -Psigning.password=${{ secrets.SIGNING_PASSWORD }}
-          :letosremote:publishAllPublicationsToMavenCentral
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: ./gradlew :letosremote:publishToMavenCentral --no-configuration-cache

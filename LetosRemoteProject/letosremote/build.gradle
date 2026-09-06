@@ -1,3 +1,6 @@
+import com.vanniktech.maven.publish.AndroidSingleVariantLibrary
+import com.vanniktech.maven.publish.SonatypeHost
+
 plugins {
     id 'com.android.library'
     id 'com.vanniktech.maven.publish'
@@ -38,9 +41,17 @@ dependencies {
 def isLocalPublish = gradle.startParameter.taskNames.any { it.contains('publishToMavenLocal') }
 
 mavenPublishing {
+    configure(new AndroidSingleVariantLibrary(
+            'release',
+            true,
+            true
+    ))
+
     if (!isLocalPublish) {
-        publishToMavenCentral()
+        publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL, true)
+        signAllPublications()
     }
+
     coordinates(
             'org.letos',
             'letosremote',
