@@ -27,6 +27,10 @@ android {
         }
     }
 
+    publishing {
+        singleVariant('release')
+    }
+
 }
 
 group = 'org.letos'
@@ -42,7 +46,6 @@ mavenPublishing {
     if (!isLocalPublish) {
         publishToMavenCentral()
     }
-    androidVariantToPublish = 'release'
     coordinates(
             'org.letos',
             'letosremote',
