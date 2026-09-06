@@ -27,10 +27,6 @@ android {
         }
     }
 
-    publishing {
-        singleVariant('release')
-    }
-
 }
 
 group = 'org.letos'
