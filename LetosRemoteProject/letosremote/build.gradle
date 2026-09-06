@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.library'
     id 'com.vanniktech.maven.publish'
+    id 'signing'
 }
 
 android {
@@ -35,16 +36,14 @@ dependencies {
     implementation 'androidx.core:core:1.13.1'
 }
 
-mavenPublishing {
-    publishToMavenCentral()
-    if (!gradle.startParameter.taskNames.any { it.contains('publishToMavenLocal') }) {
-        signAllPublications()
-    }
+def isLocalPublish = gradle.startParameter.taskNames.any { it.contains('publishToMavenLocal') }
 
+mavenPublishing {
+    publishToMavenCentral('S01')
     coordinates(
-        'org.letos',
-        'letosremote',
-        version
+            'org.letos',
+            'letosremote',
+            version
     )
 
     pom {
@@ -72,5 +71,24 @@ mavenPublishing {
             connection = 'scm:git:https://github.com/pawelsalawa/letos-android.git'
             developerConnection = 'scm:git:ssh://git@github.com/pawelsalawa/letos-android.git'
         }
+    }
+
+    mavenCentral {
+        username = providers.environmentVariable('MAVEN_CENTRAL_USERNAME').orNull
+        password = providers.environmentVariable('MAVEN_CENTRAL_PASSWORD').orNull
+    }
+
+    if (!isLocalPublish) {
+        signAllPublications()
+    }
+}
+
+if (!isLocalPublish) {
+    signing {
+        useInMemoryPgpKeys(
+                providers.environmentVariable('SIGNING_KEY').orNull,
+                providers.environmentVariable('SIGNING_PASSWORD').orNull
+        )
+        sign publishing.publications
     }
 }
