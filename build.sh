@@ -1,1 +1,1 @@
-cd LetosRemoteProject && ./gradlew letosremote:assembleRelease letosremote:publishReleasePublicationToMavenLocal && ls -l letosremote/build/outputs/aar/letosremote-release.aar && cd ..
+cd LetosRemoteProject && ./gradlew letosremote:assembleRelease && ls -l letosremote/build/outputs/aar/letosremote-release.aar && cd ..

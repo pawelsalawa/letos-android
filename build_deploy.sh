@@ -1,1 +1,1 @@
-./build.sh && ./deploy.sh
+./build.sh && ./release_local.sh && ./deploy.sh

@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">LetosRemote</string>
+    <string name="letos_service_notification_channel_name">Letos Remote listener</string>
+    <string name="letos_service_notification_channel_description">Keeps the Letos listener active in the background</string>
+    <string name="letos_service_notification_title">Letos listener is running</string>
+    <string name="letos_service_notification_text">Listening for remote connections on port %1$d</string>
 </resources>
