@@ -18,6 +18,8 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          validate-wrappers: false
 
       - name: Publish letosremote to Maven Central
         working-directory: LetosRemoteProject
