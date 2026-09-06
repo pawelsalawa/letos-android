@@ -39,7 +39,10 @@ dependencies {
 def isLocalPublish = gradle.startParameter.taskNames.any { it.contains('publishToMavenLocal') }
 
 mavenPublishing {
-    publishToMavenCentral('S01')
+    if (!isLocalPublish) {
+        publishToMavenCentral()
+    }
+    androidVariantToPublish = 'release'
     coordinates(
             'org.letos',
             'letosremote',
@@ -72,23 +75,14 @@ mavenPublishing {
             developerConnection = 'scm:git:ssh://git@github.com/pawelsalawa/letos-android.git'
         }
     }
-
-    mavenCentral {
-        username = providers.environmentVariable('MAVEN_CENTRAL_USERNAME').orNull
-        password = providers.environmentVariable('MAVEN_CENTRAL_PASSWORD').orNull
-    }
-
-    if (!isLocalPublish) {
-        signAllPublications()
-    }
 }
 
 if (!isLocalPublish) {
     signing {
         useInMemoryPgpKeys(
-                providers.environmentVariable('SIGNING_KEY').orNull,
-                providers.environmentVariable('SIGNING_PASSWORD').orNull
+                providers.gradleProperty('signing.key').orNull ?: providers.environmentVariable('SIGNING_KEY').orNull,
+                providers.gradleProperty('signing.password').orNull ?: providers.environmentVariable('SIGNING_PASSWORD').orNull
         )
-        sign publishing.publications
+        sign(publishing.publications)
     }
 }
