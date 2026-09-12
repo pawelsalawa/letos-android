@@ -1,8 +1,8 @@
 package org.letos.letosremote.internal;
 
 import android.content.Context;
-import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteOpenHelper;
+import org.sqlite.database.sqlite.SQLiteDatabase;
+import org.sqlite.database.sqlite.SQLiteOpenHelper;
 
 /**
  * Created by Pawel Salawa on 08.02.15.

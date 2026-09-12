@@ -1,7 +1,7 @@
 package org.letos.letosremote.internal;
 
 import android.database.Cursor;
-import android.database.sqlite.SQLiteException;
+import org.sqlite.database.sqlite.SQLiteException;
 import android.os.OperationCanceledException;
 
 import java.util.ArrayList;

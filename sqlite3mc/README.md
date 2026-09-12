@@ -1,0 +1,1 @@
+This folder will contain output files of the update_mc.sh and compile_mc.sh scripts.

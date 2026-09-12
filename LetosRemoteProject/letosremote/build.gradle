@@ -6,6 +6,107 @@ plugins {
     id 'com.vanniktech.maven.publish'
 }
 
+group = 'org.letos'
+version = '1.3.1'
+
+// If an AAR was downloaded into sqlite3mc/, unpack and integrate it into the module
+// - native libs -> src/main/jniLibs
+// - classes.jar -> libs/<aar-base>.jar (added to dependencies)
+// - res/assets -> added to sourceSets output directories
+
+def sqliteAarDir = file("${rootProject.rootDir}/sqlite3mc")
+def sqliteAarFile = sqliteAarDir.listFiles()?.find { it != null && it.name.endsWith('.aar') }?.name
+
+if (sqliteAarFile != null) {
+    def sqliteAar = file("${rootProject.rootDir}/sqlite3mc/${sqliteAarFile}")
+    def unpackDir = file("${buildDir}/unpackedSqliteAar")
+    def generatedResDir = file("${buildDir}/unpackedSqliteAar/res")
+    def generatedAssetsDir = file("${buildDir}/unpackedSqliteAar/assets")
+    def libsDir = file("${projectDir}/libs")
+
+    // Eagerly unpack AAR at configuration time so classes.jar/jni are visible to compile classpath
+    if (!unpackDir.exists()) {
+        copy {
+            from zipTree(sqliteAar)
+            into unpackDir
+        }
+    }
+
+    // Ensure libs and jniLibs contain extracted artifacts now
+    libsDir.mkdirs()
+    def classesJar = file("${unpackDir}/classes.jar")
+    if (classesJar.exists()) {
+        copy {
+            from classesJar
+            into libsDir
+            rename { String s -> sqliteAarFile.replaceAll(/\\.aar$/, '.jar') }
+        }
+    }
+
+    def jniSrc = file("${unpackDir}/jni")
+    if (jniSrc.exists()) {
+        copy {
+            from jniSrc
+            into "${projectDir}/src/main/jniLibs"
+        }
+    }
+
+    task unpackSqliteAar(type: Copy) {
+        from zipTree(sqliteAar)
+        into unpackDir
+    }
+
+    task copyJniFromAar(type: Copy) {
+        dependsOn unpackSqliteAar
+        // copy all jni/<abi>/* into src/main/jniLibs/<abi>/
+        doFirst {
+            // ensure src/main/jniLibs exists
+            file("${projectDir}/src/main/jniLibs").mkdirs()
+        }
+        from("${unpackDir}/jni") {
+            into "${projectDir}/src/main/jniLibs"
+        }
+        // Overwrite existing files (allow replacing with compiled ones)
+        into "${projectDir}/src/main/jniLibs"
+    }
+
+    task extractAarClasses(type: Copy) {
+        dependsOn unpackSqliteAar
+        doFirst { libsDir.mkdirs() }
+        from("${unpackDir}/classes.jar") {
+            rename { String s -> sqliteAarFile.replaceAll(/\\.aar$/, '.jar') }
+        }
+        into libsDir
+    }
+
+    task copyAarRes(type: Copy) {
+        dependsOn unpackSqliteAar
+        from("${unpackDir}/res") { into '' }
+        into generatedResDir
+    }
+
+    task copyAarAssets(type: Copy) {
+        dependsOn unpackSqliteAar
+        from("${unpackDir}/assets") { into '' }
+        into generatedAssetsDir
+    }
+
+    // Ensure unpack/copy tasks run before Java compilation tasks
+    afterEvaluate {
+        try {
+            tasks.withType(org.gradle.api.tasks.compile.JavaCompile).configureEach {
+                dependsOn copyJniFromAar, extractAarClasses, copyAarRes, copyAarAssets
+            }
+        } catch(Exception e) {
+            logger.warn("Could not wire unpack tasks to JavaCompile tasks: ${e.message}")
+        }
+    }
+
+    // add the extracted classes.jar as a dependency later in the standard dependencies block
+    // generated res/assets will be added to sourceSets after the android block
+}
+
+
 android {
     namespace 'org.letos.letosremote'
     compileSdk 35
@@ -29,13 +130,33 @@ android {
         }
     }
 
+    sourceSets {
+        main {
+            // Include native libs from repository root and local module jniLibs (populated from AAR)
+            jniLibs.srcDirs = [file("${rootProject.rootDir}/sqlite3mc/lib"), file("${projectDir}/src/main/jniLibs")]
+        }
+    }
+
 }
 
-group = 'org.letos'
-version = '1.3.0'
+// do not add project repositories here; repository management is handled in settings.gradle
 
 dependencies {
     implementation 'androidx.core:core:1.13.1'
+    // include any jars placed under libs/ (including the extracted classes.jar from the downloaded AAR)
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+}
+
+// If an AAR was present, hook up its generated resources/assets and add the extracted classes.jar as dependency
+if (sqliteAarFile != null) {
+    def generatedResDir = file("${buildDir}/unpackedSqliteAar/res")
+    def generatedAssetsDir = file("${buildDir}/unpackedSqliteAar/assets")
+    android.sourceSets.main.res.srcDirs += generatedResDir
+    android.sourceSets.main.assets.srcDirs += generatedAssetsDir
+
+    dependencies {
+        implementation files("${projectDir}/libs/${sqliteAarFile.replaceAll(/\\.aar$/, '.jar')}")
+    }
 }
 
 def isLocalPublish = gradle.startParameter.taskNames.any { it.contains('publishToMavenLocal') }
