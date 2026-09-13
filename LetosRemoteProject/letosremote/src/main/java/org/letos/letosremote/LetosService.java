@@ -54,6 +54,10 @@ public class LetosService extends Service {
     private List<String> ipBlackList = new ArrayList<>();
     private List<String> ipWhiteList = new ArrayList<>();
 
+    static {
+        System.loadLibrary("sqliteX");
+    }
+
     public void start(Context context) {
         if (running) {
             return;

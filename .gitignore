@@ -1,6 +1,3 @@
 .idea
-sqlite3mc/lib
-sqlite3mc/amalgamation
-sqlite3mc/*.aar
-LetosRemoteProject/letosremote/src/main/jniLibs
-LetosRemoteProject/letosremote/libs
+LetosRemoteProject/sqlite3mc/lib
+# LetosRemoteProject/sqlite3mc/amalgamation

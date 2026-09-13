@@ -2,6 +2,8 @@ package org.letos.letosremote.internal;
 
 import android.content.Context;
 import android.database.Cursor;
+import android.util.Log;
+
 import org.sqlite.database.sqlite.SQLiteAbortException;
 import org.sqlite.database.sqlite.SQLiteAccessPermException;
 import org.sqlite.database.sqlite.SQLiteBindOrColumnIndexOutOfRangeException;
@@ -133,6 +135,15 @@ public class LetosDbService {
 
     private SQLiteDatabase tryToGetDb(String name, int version) {
         LetosDbOpenHelper helper = new LetosDbOpenHelper(context, name, version);
-        return helper.getWritableDatabase();
+        Log.e("LETOS-DB", "before getWritableDatabase");
+        try {
+            SQLiteDatabase db = helper.getWritableDatabase();
+            Log.e("LETOS-DB", "after getWritableDatabase");
+            return db;
+        } catch (Throwable t) {
+            Log.e("LETOS-DB", "getWritableDatabase failed", t);
+            throw t;
+        }
+//        return helper.getWritableDatabase();
     }
 }

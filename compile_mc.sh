@@ -14,12 +14,14 @@ if [ -z "$NDK" ]; then
 fi
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
-AMALG_DIR="$ROOT_DIR/sqlite3mc/amalgamation"
-OUT_DIR="$ROOT_DIR/sqlite3mc/lib"
+LETOS_ROOT="$ROOT_DIR/LetosRemoteProject"
+AMALG_DIR="$LETOS_ROOT/sqlite3mc/amalgamation"
+SQLITE3MC_DIR="$LETOS_ROOT/sqlite3mc"
+OUT_DIR="$LETOS_ROOT/sqlite3mc/lib"
 
 if [ ! -d "$AMALG_DIR" ]; then
   echo "Amalgamation directory not found: $AMALG_DIR" >&2
-  echo "Run ./update_sqlite3mc.sh first." >&2
+  echo "Run ./update_mc.sh first." >&2
   exit 3
 fi
 
@@ -59,6 +61,8 @@ CFLAGS="-O2 \
         -DSQLITE_DQS=1 \
         -DSQLITE_THREADSAFE=1"
 LDFLAGS="-shared -Wl,-soname,libsqliteX.so"
+CXX_STDLIB_FLAGS="-static-libstdc++"
+ANDROID_LIBS="-llog"
 
 STRIP="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
 for arch in "${ARCHS[@]}"; do
@@ -66,15 +70,19 @@ for arch in "${ARCHS[@]}"; do
   case "$arch" in
     armeabi-v7a)
       CC="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi${API_ARM}-clang"
+      CXX="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi${API_ARM}-clang++"
       ;;
     arm64-v8a)
       CC="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android${API_ARM64}-clang"
+      CXX="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android${API_ARM64}-clang++"
       ;;
     x86)
       CC="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android${API_X86}-clang"
+      CXX="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android${API_X86}-clang++"
       ;;
     x86_64)
       CC="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android${API_X86_64}-clang"
+      CXX="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android${API_X86_64}-clang++"
       ;;
     *)
       echo "Unsupported arch: $arch" >&2
@@ -86,16 +94,54 @@ for arch in "${ARCHS[@]}"; do
     echo "Compiler not found or not executable: $CC" >&2
     exit 5
   fi
+  if [ ! -x "$CXX" ]; then
+    echo "C++ compiler not found or not executable: $CXX" >&2
+    exit 6
+  fi
 
   BUILD_DIR="$(mktemp -d)"
-  cp -r "$AMALG_DIR"/* "$BUILD_DIR"/
+  cp -R "$SQLITE3MC_DIR"/. "$BUILD_DIR"/
   pushd "$BUILD_DIR" >/dev/null
+  INCLUDE_FLAGS=(
+    -I"$BUILD_DIR"
+    -I"$BUILD_DIR/amalgamation"
+    -I"$BUILD_DIR/amalgamation/nativehelper"
+  )
 
-  echo "Compiling sqlite3.c -> sqlite3.o"
-  "$CC" $CFLAGS -I. -c sqlite3mc_amalgamation.c -o sqlite3.o
+  mapfile -t source_files < <(
+    find amalgamation -type f \
+      \( -name '*.c' -o -name '*.cpp' \) \
+      ! -name 'shell3mc_amalgamation.c' \
+      ! -name 'sqlite3.c' \
+      | sort
+  )
+  if [ "${#source_files[@]}" -eq 0 ]; then
+    echo "No C/C++ sources found in $AMALG_DIR" >&2
+    exit 7
+  fi
+
+  object_files=()
+  for source_file in "${source_files[@]}"; do
+    object_file="$(basename "${source_file%.*}").o"
+    compile_flags=("${INCLUDE_FLAGS[@]}")
+    case "$source_file" in
+      *.cpp)
+        if [ "$(basename "$source_file")" = "JNIHelp.cpp" ]; then
+          compile_flags+=(-D__GLIBC__=1)
+        fi
+        echo "Compiling $source_file -> $object_file"
+        "$CXX" $CFLAGS "${compile_flags[@]}" -c "$source_file" -o "$object_file"
+        ;;
+      *)
+        echo "Compiling $source_file -> $object_file"
+        "$CC" $CFLAGS "${compile_flags[@]}" -c "$source_file" -o "$object_file"
+        ;;
+    esac
+    object_files+=("$object_file")
+  done
 
   echo "Linking libsqliteX.so"
-  "$CC" $LDFLAGS sqlite3.o -o libsqliteX.so
+  "$CXX" $LDFLAGS $CXX_STDLIB_FLAGS "${object_files[@]}" $ANDROID_LIBS -o libsqliteX.so
   "$STRIP" libsqliteX.so
 
   mkdir -p "$OUT_DIR/$arch"
@@ -107,38 +153,3 @@ for arch in "${ARCHS[@]}"; do
 done
 
 echo "All builds finished. Libraries placed in $OUT_DIR"
-
-# If an AAR was downloaded by update_mc.sh, replace its JNI libs with the freshly built ones
-AAR_GLOB=("$ROOT_DIR/sqlite3mc"/*.aar)
-if [ -e "${AAR_GLOB[0]:-}" ]; then
-  AAR_PATH="${AAR_GLOB[0]}"
-  echo "Found AAR to patch: $AAR_PATH"
-  PATCH_DIR="$(mktemp -d)"
-  unzip -q "$AAR_PATH" -d "$PATCH_DIR"
-
-  for arch in "${ARCHS[@]}"; do
-    DEST_DIR="$PATCH_DIR/jni/$arch"
-    mkdir -p "$DEST_DIR"
-    if [ -f "$OUT_DIR/$arch/libsqliteX.so" ]; then
-      echo "Replacing JNI lib for $arch"
-      # remove existing .so files for this library name (be conservative: remove existing libs)
-      rm -f "$DEST_DIR"/*.so || true
-      cp "$OUT_DIR/$arch/libsqliteX.so" "$DEST_DIR/"
-    else
-      echo "Warning: compiled lib for $arch not found, skipping" >&2
-    fi
-  done
-
-  # Repack AAR (preserve original name)
-  NEW_AAR="${AAR_PATH}.patched"
-  (cd "$PATCH_DIR" && zip -q -r "$NEW_AAR" .)
-  if [ -f "$NEW_AAR" ]; then
-    mv -f "$NEW_AAR" "$AAR_PATH"
-    echo "Patched AAR written to $AAR_PATH"
-  else
-    echo "Failed to create patched AAR" >&2
-  fi
-  rm -rf "$PATCH_DIR"
-else
-  echo "No AAR found in $ROOT_DIR/sqlite3mc; skipping AAR patching step"
-fi

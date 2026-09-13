@@ -21,6 +21,10 @@ jobs:
         with:
           validate-wrappers: false
 
+      - name: Compile SQLite3MultipleCiphers with NDK
+        env:
+            ./compile_mc.sh
+
       - name: Publish letosremote to Maven Central
         working-directory: LetosRemoteProject
         env:
