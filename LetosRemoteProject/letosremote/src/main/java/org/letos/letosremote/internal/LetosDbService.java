@@ -36,6 +36,7 @@ public class LetosDbService {
 
     private final static Pattern DOWNGRADE_PATT = Pattern.compile(".*downgrade\\s+database\\s+from\\s+version\\s+(\\d+)\\s+to\\s+(\\d+)");
 
+    private HashMap<String, LetosDbOpenHelper> managedHelpers = new HashMap<>();
     private HashMap<String,SQLiteDatabase> managedDatabases = new HashMap<>();
     private Context context;
 
@@ -58,15 +59,19 @@ public class LetosDbService {
         return context.deleteDatabase(dbName);
     }
 
-    public void releaseAll() {
-        for (SQLiteDatabase db : managedDatabases.values()) {
-            db.close();
+    public synchronized void releaseAll() {
+        for (LetosDbOpenHelper helper : managedHelpers.values()) {
+            helper.close();
         }
+        managedHelpers.clear();
         managedDatabases.clear();
     }
 
     public QueryResults exec(String dbName, String query) {
-        SQLiteDatabase db = getDb(dbName);
+        SQLiteDatabase db;
+        synchronized (this) {
+            db = getDb(dbName);
+        }
         QueryResults results;
         try {
             Cursor cursor = db.rawQuery(query, null);
@@ -106,44 +111,46 @@ public class LetosDbService {
             results = new QueryResults(e, ErrorCode.SQLITE_LOCKED);
         } catch (SQLiteException e) {
             results = new QueryResults(e, ErrorCode.SQLITE_ERROR);
+        } catch (IllegalStateException e) {
+            // Database was closed concurrently (e.g. releaseAll() called from another thread)
+            results = new QueryResults(new SQLiteException(e.getMessage()), ErrorCode.SQLITE_ERROR);
         }
 
         return results;
     }
 
     private SQLiteDatabase getDb(String name) {
-        if (managedDatabases.containsKey(name)) {
-            return managedDatabases.get(name);
+        SQLiteDatabase cached = managedDatabases.get(name);
+        if (cached != null && cached.isOpen()) {
+            return cached;
         }
 
+        // Not cached or was closed externally (e.g. by DefaultDatabaseErrorHandler on corruption).
+        // Remove stale entries and reopen.
+        managedDatabases.remove(name);
+        LetosDbOpenHelper staleHelper = managedHelpers.remove(name);
+        if (staleHelper != null) {
+            try { staleHelper.close(); } catch (Exception ignored) {}
+        }
+
+        LetosDbOpenHelper helper = null;
         SQLiteDatabase db = null;
         try {
-            db = tryToGetDb(name, 1);
+            helper = new LetosDbOpenHelper(context, name, 1);
+            db = helper.getWritableDatabase();
         } catch (SQLiteException e) {
             // If this is "cannot downgrade" problem, try to open with target version.
             String msg = e.getMessage();
             Matcher m = DOWNGRADE_PATT.matcher(msg);
             if (m.find()) {
-                db = tryToGetDb(name, Integer.parseInt(m.group(1)));
+                helper = new LetosDbOpenHelper(context, name, Integer.parseInt(m.group(1)));
+                db = helper.getWritableDatabase();
             } else {
                 throw e;
             }
         }
+        managedHelpers.put(name, helper);
         managedDatabases.put(name, db);
         return db;
-    }
-
-    private SQLiteDatabase tryToGetDb(String name, int version) {
-        LetosDbOpenHelper helper = new LetosDbOpenHelper(context, name, version);
-        Log.e("LETOS-DB", "before getWritableDatabase");
-        try {
-            SQLiteDatabase db = helper.getWritableDatabase();
-            Log.e("LETOS-DB", "after getWritableDatabase");
-            return db;
-        } catch (Throwable t) {
-            Log.e("LETOS-DB", "getWritableDatabase failed", t);
-            throw t;
-        }
-//        return helper.getWritableDatabase();
     }
 }

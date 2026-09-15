@@ -276,7 +276,7 @@ public class ClientHandler implements Runnable {
         HashMap<String,Object> map = new HashMap<>();
         QueryResults results = dbService.exec(dbNameStr, data);
         if (results.isError()) {
-            map.put(ERROR_CODE_KEY, results.getErrorCode());
+            map.put(ERROR_CODE_KEY, results.getErrorCode().ordinal());
             map.put(ERROR_MESSAGE_KEY, results.getErrorMessage());
         } else {
             map.put(COLUMNS_KEY, results.getColumnNames());
