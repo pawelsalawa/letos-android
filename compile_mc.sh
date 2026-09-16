@@ -58,8 +58,16 @@ CFLAGS="-O2 \
         -DSQLITE_ENABLE_MATH_FUNCTIONS \
         -DSQLITE_ENABLE_PERCENTILE \
         -DSQLITE_ENABLE_ORDERED_SET_AGGREGATES \
+        -DSQLITE_HAS_CODEC \
+        -DSQLITE_ALLOW_XTHREAD_CONNECT=1 \
+        -DCODEC_TYPE=CODEC_TYPE_AES256 \
+        -DHAVE_USLEEP=1 \
+        -DSQLITE_TEMP_STORE=3 \
+        -DSQLITE_USE_URI=1 \
+        -DHAVE_STRCHRNUL=0 \
         -DSQLITE_DQS=1 \
-        -DSQLITE_THREADSAFE=1"
+        -DSQLITE_THREADSAFE=1 \
+        -DSQLITE_EXTRA_INIT=letosSqliteExtraInit"
 LDFLAGS="-shared -Wl,-soname,libsqliteX.so"
 CXX_STDLIB_FLAGS="-static-libstdc++"
 ANDROID_LIBS="-llog"
@@ -109,7 +117,7 @@ for arch in "${ARCHS[@]}"; do
   )
 
   mapfile -t source_files < <(
-    find amalgamation -type f \
+    find amalgamation $LETOS_ROOT/letosremote/src/main/c -type f \
       \( -name '*.c' -o -name '*.cpp' \) \
       ! -name 'shell3mc_amalgamation.c' \
       ! -name 'sqlite3.c' \

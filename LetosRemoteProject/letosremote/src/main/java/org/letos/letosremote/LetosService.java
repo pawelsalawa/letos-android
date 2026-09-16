@@ -13,6 +13,7 @@ import android.os.IBinder;
 import android.os.PowerManager;
 import android.util.Log;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,6 +23,7 @@ import androidx.core.content.ContextCompat;
 
 import org.letos.letosremote.internal.LetosListener;
 import org.letos.letosremote.internal.Utils;
+import org.sqlite.database.sqlite.SQLiteDatabase;
 
 /**
  * Created by Pawel Salawa on 10.02.15.

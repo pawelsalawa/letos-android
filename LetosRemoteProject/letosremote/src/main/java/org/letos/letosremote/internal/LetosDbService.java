@@ -33,12 +33,8 @@ import java.util.regex.Pattern;
  * Created by Pawel Salawa on 04.02.15.
  */
 public class LetosDbService {
-
-    private final static Pattern DOWNGRADE_PATT = Pattern.compile(".*downgrade\\s+database\\s+from\\s+version\\s+(\\d+)\\s+to\\s+(\\d+)");
-
-    private HashMap<String, LetosDbOpenHelper> managedHelpers = new HashMap<>();
-    private HashMap<String,SQLiteDatabase> managedDatabases = new HashMap<>();
-    private Context context;
+    private final HashMap<String,SQLiteDatabase> managedDatabases = new HashMap<>();
+    private final Context context;
 
     public LetosDbService(Context context) {
         this.context = context.getApplicationContext();
@@ -47,8 +43,12 @@ public class LetosDbService {
     public List<String> getDbList() {
         List<String> filteredList = new ArrayList<>();
         for (String dbFile : context.databaseList()) {
-            if (dbFile.endsWith("-journal"))
+            if (dbFile.endsWith("-journal") || dbFile.endsWith("-shm") || dbFile.endsWith("-wal"))
                 continue;
+
+            if (dbFile.contains("?")) {
+                dbFile = dbFile.substring(0, dbFile.indexOf("?"));
+            }
 
             filteredList.add(dbFile);
         }
@@ -56,25 +56,45 @@ public class LetosDbService {
     }
 
     public boolean deleteDb(String dbName) {
-        return context.deleteDatabase(dbName);
+        for (String dbFile : context.databaseList()) {
+            if (dbFile.endsWith("-journal") || dbFile.endsWith("-shm") || dbFile.endsWith("-wal"))
+                continue;
+
+            String cmpName = dbFile.contains("?") ?
+                    dbFile.substring(0, dbFile.indexOf("?")) :
+                    dbFile;
+
+            if (cmpName.equals(dbName)) {
+                return context.deleteDatabase(dbFile);
+            }
+        }
+        return false;
     }
 
     public synchronized void releaseAll() {
-        for (LetosDbOpenHelper helper : managedHelpers.values()) {
-            helper.close();
+        for (SQLiteDatabase db : managedDatabases.values()) {
+            try {
+                db.close();
+            } catch (Exception ignored) {
+            }
         }
-        managedHelpers.clear();
+
         managedDatabases.clear();
     }
 
     public QueryResults exec(String dbName, String query) {
+        Log.d(
+                "LETOS",
+                "SQL thread=" + Thread.currentThread().getId()
+                        + "/" + Thread.currentThread().getName()
+                        + " sql=" + query
+        );
         SQLiteDatabase db;
         synchronized (this) {
             db = getDb(dbName);
         }
         QueryResults results;
-        try {
-            Cursor cursor = db.rawQuery(query, null);
+        try (Cursor cursor = db.rawQuery(query, null)) {
             results = new QueryResults();
             results.readResults(cursor);
         } catch (SQLiteAbortException e) {
@@ -125,31 +145,26 @@ public class LetosDbService {
             return cached;
         }
 
-        // Not cached or was closed externally (e.g. by DefaultDatabaseErrorHandler on corruption).
-        // Remove stale entries and reopen.
-        managedDatabases.remove(name);
-        LetosDbOpenHelper staleHelper = managedHelpers.remove(name);
-        if (staleHelper != null) {
-            try { staleHelper.close(); } catch (Exception ignored) {}
-        }
-
-        LetosDbOpenHelper helper = null;
-        SQLiteDatabase db = null;
-        try {
-            helper = new LetosDbOpenHelper(context, name, 1);
-            db = helper.getWritableDatabase();
-        } catch (SQLiteException e) {
-            // If this is "cannot downgrade" problem, try to open with target version.
-            String msg = e.getMessage();
-            Matcher m = DOWNGRADE_PATT.matcher(msg);
-            if (m.find()) {
-                helper = new LetosDbOpenHelper(context, name, Integer.parseInt(m.group(1)));
-                db = helper.getWritableDatabase();
-            } else {
-                throw e;
+        SQLiteDatabase removed = managedDatabases.remove(name);
+        if (removed != null && removed.isOpen()) {
+            try {
+                removed.close();
+            } catch (Exception ignored) {
             }
         }
-        managedHelpers.put(name, helper);
+
+        String path;
+        if (name.startsWith("file:")) {
+            path = name;
+        } else {
+            path = context.getDatabasePath(name).getPath();
+        }
+
+        SQLiteDatabase db = SQLiteDatabase.openOrCreateDatabase(
+                path,
+                null
+        );
+
         managedDatabases.put(name, db);
         return db;
     }
