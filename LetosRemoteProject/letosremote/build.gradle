@@ -11,13 +11,11 @@ version = '1.3.2'
 def sqliteLibsDir = file("${rootProject.rootDir}/sqlite3mc/lib")
 
 android {
-    namespace 'org.letos.letosremote'
+    namespace = 'org.letos.letosremote'
     compileSdk 35
-    buildToolsVersion '35.0.0'
 
     defaultConfig {
         minSdk 21
-        targetSdk 35
     }
 
     compileOptions {
@@ -36,6 +34,12 @@ android {
         main {
             jniLibs.srcDirs = [sqliteLibsDir]
         }
+    }
+    lint {
+        targetSdk 35
+    }
+    testOptions {
+        targetSdk 35
     }
 }
 

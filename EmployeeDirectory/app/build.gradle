@@ -3,30 +3,29 @@ plugins {
 }
 
 android {
-    namespace 'samples.employeedirectory'
-    compileSdk 35
-    buildToolsVersion '35.0.0'
+    namespace = 'samples.employeedirectory'
+    compileSdk = 35
 
     defaultConfig {
-        applicationId "samples.employeedirectory"
-        minSdk 21
-        targetSdk 35
-        versionCode 1
-        versionName "1.0"
+        applicationId = "samples.employeedirectory"
+        minSdk = 21
+        targetSdk = 35
+        versionCode = 1
+        versionName = "1.0"
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
 
     lint {
-        abortOnError false
+        abortOnError = false
     }
 
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled = false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }

@@ -3,9 +3,8 @@ plugins {
 }
 
 android {
-    namespace 'org.letos.letosremote.demo'
+    namespace = 'org.letos.letosremote.demo'
     compileSdk 35
-    buildToolsVersion '35.0.0'
 
     defaultConfig {
         applicationId "org.letos.letosremote.demo"
