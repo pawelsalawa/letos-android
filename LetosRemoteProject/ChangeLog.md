@@ -3,4 +3,4 @@
 - Added `sqlite3` binaary builds with `compile_mc.sh`, so they can be easily copied to the DbAndroid in Letos.
 
 # 1.3.2
-- 
+- Switched the letosremote connector entirely to SQLite3MultipleCiphers.
