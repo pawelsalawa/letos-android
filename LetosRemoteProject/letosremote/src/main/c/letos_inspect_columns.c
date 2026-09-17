@@ -2,13 +2,13 @@
 #include <string.h>
 
 typedef struct LetosInspectColumnsVtab {
-    sqlite3_vtab base;
-    sqlite3* db;
+    mc_sqlite3_vtab base;
+    mc_sqlite3* db;
 } LetosInspectColumnsVtab;
 
 typedef struct LetosInspectColumnsCursor {
-    sqlite3_vtab_cursor base;
-    sqlite3_stmt* stmt;
+    mc_sqlite3_vtab_cursor base;
+    mc_sqlite3_stmt* stmt;
     char* query;
     int columnIndex;
     int eof;
@@ -17,7 +17,7 @@ typedef struct LetosInspectColumnsCursor {
 static char* letosDupText(const char* z) {
     if (!z) return NULL;
     size_t n = strlen(z);
-    char* out = sqlite3_malloc64(n + 1);
+    char* out = mc_sqlite3_malloc64(n + 1);
     if (!out) return NULL;
     memcpy(out, z, n + 1);
     return out;
@@ -25,30 +25,30 @@ static char* letosDupText(const char* z) {
 
 static void letosClearCursor(LetosInspectColumnsCursor* c) {
     if (c->stmt) {
-        sqlite3_finalize(c->stmt);
+        mc_sqlite3_finalize(c->stmt);
         c->stmt = NULL;
     }
-    sqlite3_free(c->query);
+    mc_sqlite3_free(c->query);
     c->query = NULL;
     c->columnIndex = 0;
     c->eof = 1;
 }
 
-static int letosInspectColumnsDisconnect(sqlite3_vtab* pVtab) {
-    sqlite3_free(pVtab);
+static int letosInspectColumnsDisconnect(mc_sqlite3_vtab* pVtab) {
+    mc_sqlite3_free(pVtab);
     return SQLITE_OK;
 }
 
 static int letosInspectColumnsConnect(
-    sqlite3* db, void* pAux, int argc, const char* const* argv,
-    sqlite3_vtab** ppVtab, char** pzErr
+    mc_sqlite3* db, void* pAux, int argc, const char* const* argv,
+    mc_sqlite3_vtab** ppVtab, char** pzErr
 ) {
     (void)pAux;
     (void)argc;
     (void)argv;
     (void)pzErr;
 
-    int rc = sqlite3_declare_vtab(db,
+    int rc = mc_sqlite3_declare_vtab(db,
         "CREATE TABLE x("
         "query HIDDEN, "
         "database TEXT, "
@@ -58,7 +58,7 @@ static int letosInspectColumnsConnect(
     );
     if (rc != SQLITE_OK) return rc;
 
-    LetosInspectColumnsVtab* vtab = sqlite3_malloc64(sizeof(*vtab));
+    LetosInspectColumnsVtab* vtab = mc_sqlite3_malloc64(sizeof(*vtab));
     if (!vtab) return SQLITE_NOMEM;
     memset(vtab, 0, sizeof(*vtab));
     vtab->db = db;
@@ -66,10 +66,10 @@ static int letosInspectColumnsConnect(
     return SQLITE_OK;
 }
 
-static int letosInspectColumnsBestIndex(sqlite3_vtab* tab, sqlite3_index_info* pIdxInfo) {
+static int letosInspectColumnsBestIndex(mc_sqlite3_vtab* tab, mc_sqlite3_index_info* pIdxInfo) {
     (void)tab;
     for (int i = 0; i < pIdxInfo->nConstraint; ++i) {
-        const struct sqlite3_index_constraint* c = &pIdxInfo->aConstraint[i];
+        const struct mc_sqlite3_index_constraint* c = &pIdxInfo->aConstraint[i];
         if (c->usable && c->iColumn == 0 && c->op == SQLITE_INDEX_CONSTRAINT_EQ) {
             pIdxInfo->aConstraintUsage[i].argvIndex = 1;
             pIdxInfo->aConstraintUsage[i].omit = 1;
@@ -82,9 +82,9 @@ static int letosInspectColumnsBestIndex(sqlite3_vtab* tab, sqlite3_index_info* p
     return SQLITE_OK;
 }
 
-static int letosInspectColumnsOpen(sqlite3_vtab* p, sqlite3_vtab_cursor** ppCursor) {
+static int letosInspectColumnsOpen(mc_sqlite3_vtab* p, mc_sqlite3_vtab_cursor** ppCursor) {
     (void)p;
-    LetosInspectColumnsCursor* c = sqlite3_malloc64(sizeof(*c));
+    LetosInspectColumnsCursor* c = mc_sqlite3_malloc64(sizeof(*c));
     if (!c) return SQLITE_NOMEM;
     memset(c, 0, sizeof(*c));
     c->eof = 1;
@@ -92,16 +92,16 @@ static int letosInspectColumnsOpen(sqlite3_vtab* p, sqlite3_vtab_cursor** ppCurs
     return SQLITE_OK;
 }
 
-static int letosInspectColumnsClose(sqlite3_vtab_cursor* cur) {
+static int letosInspectColumnsClose(mc_sqlite3_vtab_cursor* cur) {
     LetosInspectColumnsCursor* c = (LetosInspectColumnsCursor*)cur;
     letosClearCursor(c);
-    sqlite3_free(c);
+    mc_sqlite3_free(c);
     return SQLITE_OK;
 }
 
 static int letosInspectColumnsFilter(
-    sqlite3_vtab_cursor* pCursor, int idxNum, const char* idxStr,
-    int argc, sqlite3_value** argv
+    mc_sqlite3_vtab_cursor* pCursor, int idxNum, const char* idxStr,
+    int argc, mc_sqlite3_value** argv
 ) {
     (void)idxStr;
     LetosInspectColumnsCursor* c = (LetosInspectColumnsCursor*)pCursor;
@@ -113,7 +113,7 @@ static int letosInspectColumnsFilter(
         return SQLITE_ERROR;
     }
 
-    const unsigned char* q = sqlite3_value_text(argv[0]);
+    const unsigned char* q = mc_sqlite3_value_text(argv[0]);
     if (!q) {
         return SQLITE_NOMEM;
     }
@@ -123,14 +123,14 @@ static int letosInspectColumnsFilter(
         return SQLITE_NOMEM;
     }
 
-    int rc = sqlite3_prepare_v3(vtab->db, c->query, -1, 0, &c->stmt, NULL);
+    int rc = mc_sqlite3_prepare_v3(vtab->db, c->query, -1, 0, &c->stmt, NULL);
     if (rc != SQLITE_OK) {
         letosClearCursor(c);
         c->eof = 1;
         return rc;
     }
 
-    if (sqlite3_column_count(c->stmt) <= 0) {
+    if (mc_sqlite3_column_count(c->stmt) <= 0) {
         c->eof = 1;
     } else {
         c->columnIndex = 0;
@@ -139,72 +139,72 @@ static int letosInspectColumnsFilter(
     return SQLITE_OK;
 }
 
-static int letosInspectColumnsNext(sqlite3_vtab_cursor* pCursor) {
+static int letosInspectColumnsNext(mc_sqlite3_vtab_cursor* pCursor) {
     LetosInspectColumnsCursor* c = (LetosInspectColumnsCursor*)pCursor;
     if (!c->stmt) {
         c->eof = 1;
         return SQLITE_OK;
     }
     c->columnIndex++;
-    if (c->columnIndex >= sqlite3_column_count(c->stmt)) {
+    if (c->columnIndex >= mc_sqlite3_column_count(c->stmt)) {
         c->eof = 1;
     }
     return SQLITE_OK;
 }
 
-static int letosInspectColumnsEof(sqlite3_vtab_cursor* pCursor) {
+static int letosInspectColumnsEof(mc_sqlite3_vtab_cursor* pCursor) {
     return ((LetosInspectColumnsCursor*)pCursor)->eof;
 }
 
-static int letosInspectColumnsColumn(sqlite3_vtab_cursor* pCursor, sqlite3_context* ctx, int i) {
+static int letosInspectColumnsColumn(mc_sqlite3_vtab_cursor* pCursor, mc_sqlite3_context* ctx, int i) {
     LetosInspectColumnsCursor* c = (LetosInspectColumnsCursor*)pCursor;
     if (!c->stmt || c->eof) {
-        sqlite3_result_null(ctx);
+        mc_sqlite3_result_null(ctx);
         return SQLITE_OK;
     }
 
     switch (i) {
         case 0:
-            sqlite3_result_text(ctx, c->query ? c->query : "", -1, SQLITE_TRANSIENT);
+            mc_sqlite3_result_text(ctx, c->query ? c->query : "", -1, SQLITE_TRANSIENT);
             break;
         case 1: {
-            const char* v = sqlite3_column_database_name(c->stmt, c->columnIndex);
-            if (v) sqlite3_result_text(ctx, v, -1, SQLITE_TRANSIENT);
-            else sqlite3_result_null(ctx);
+            const char* v = mc_sqlite3_column_database_name(c->stmt, c->columnIndex);
+            if (v) mc_sqlite3_result_text(ctx, v, -1, SQLITE_TRANSIENT);
+            else mc_sqlite3_result_null(ctx);
             break;
         }
         case 2: {
-            const char* v = sqlite3_column_table_name(c->stmt, c->columnIndex);
-            if (v) sqlite3_result_text(ctx, v, -1, SQLITE_TRANSIENT);
-            else sqlite3_result_null(ctx);
+            const char* v = mc_sqlite3_column_table_name(c->stmt, c->columnIndex);
+            if (v) mc_sqlite3_result_text(ctx, v, -1, SQLITE_TRANSIENT);
+            else mc_sqlite3_result_null(ctx);
             break;
         }
         case 3: {
-            const char* v = sqlite3_column_origin_name(c->stmt, c->columnIndex);
-            if (v) sqlite3_result_text(ctx, v, -1, SQLITE_TRANSIENT);
-            else sqlite3_result_null(ctx);
+            const char* v = mc_sqlite3_column_origin_name(c->stmt, c->columnIndex);
+            if (v) mc_sqlite3_result_text(ctx, v, -1, SQLITE_TRANSIENT);
+            else mc_sqlite3_result_null(ctx);
             break;
         }
         case 4: {
-            const char* v = sqlite3_column_name(c->stmt, c->columnIndex);
-            if (v) sqlite3_result_text(ctx, v, -1, SQLITE_TRANSIENT);
-            else sqlite3_result_null(ctx);
+            const char* v = mc_sqlite3_column_name(c->stmt, c->columnIndex);
+            if (v) mc_sqlite3_result_text(ctx, v, -1, SQLITE_TRANSIENT);
+            else mc_sqlite3_result_null(ctx);
             break;
         }
         default:
-            sqlite3_result_null(ctx);
+            mc_sqlite3_result_null(ctx);
             break;
     }
     return SQLITE_OK;
 }
 
-static int letosInspectColumnsRowid(sqlite3_vtab_cursor* pCursor, sqlite3_int64* pRowid) {
+static int letosInspectColumnsRowid(mc_sqlite3_vtab_cursor* pCursor, mc_sqlite3_int64* pRowid) {
     LetosInspectColumnsCursor* c = (LetosInspectColumnsCursor*)pCursor;
-    *pRowid = (sqlite3_int64)(c->columnIndex + 1);
+    *pRowid = (mc_sqlite3_int64)(c->columnIndex + 1);
     return SQLITE_OK;
 }
 
-static sqlite3_module letosInspectColumnsModule = {
+static mc_sqlite3_module letosInspectColumnsModule = {
     0,
     0,
     letosInspectColumnsConnect,
@@ -232,14 +232,14 @@ static sqlite3_module letosInspectColumnsModule = {
 };
 
 static int letosInspectColumnsExtensionInit(
-    sqlite3* db, char** pzErrMsg, const struct sqlite3_api_routines* pApi
+    mc_sqlite3* db, char** pzErrMsg, const struct mc_sqlite3_api_routines* pApi
 ) {
     (void)pzErrMsg;
     (void)pApi;
-    return sqlite3_create_module(db, "letos_inspect_columns", &letosInspectColumnsModule, NULL);
+    return mc_sqlite3_create_module(db, "letos_inspect_columns", &letosInspectColumnsModule, NULL);
 }
 
 int letosSqliteExtraInit(const char* unused) {
     (void)unused;
-    return sqlite3_auto_extension((void (*)(void))letosInspectColumnsExtensionInit);
+    return mc_sqlite3_auto_extension((void (*)(void))letosInspectColumnsExtensionInit);
 }

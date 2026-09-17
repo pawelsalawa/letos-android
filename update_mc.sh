@@ -9,6 +9,8 @@ set -euo pipefail
 # - replaces LetosRemoteProject/letosremote/src/main/java/org/sqlite
 # - refreshes LetosRemoteProject/sqlite3mc/amalgamation with JNI C/C++/header
 #   sources from SQLite Android Bindings (excluding sqlite3.cpp/sqlite3.h)
+# - rewrites bundled SQLite symbols to mc_sqlite3* to avoid colliding with
+#   Android's libsqlite.so symbols
 
 REPO_ARG="${1:-https://github.com/utelle/SQLite3MultipleCiphers}"
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -18,6 +20,7 @@ SQLITE3MC_DIR="$LETOS_ROOT/sqlite3mc"
 AMALG_DIR="$SQLITE3MC_DIR/amalgamation"
 JAVA_ORG_DIR="$ROOT_DIR/LetosRemoteProject/letosremote/src/main/java/org"
 JNI_SOURCE_DIR_REL="sqlite3/src/main/jni/sqlite"
+LETOS_NATIVE_C_DIR="$LETOS_ROOT/letosremote/src/main/c"
 TMP_DIR="$(mktemp -d)"
 RELEASE_JSON="$TMP_DIR/release.json"
 trap 'rm -rf "$TMP_DIR"' EXIT
@@ -35,6 +38,21 @@ else
 fi
 
 API_URL="https://api.github.com/repos/$OWNER_REPO/releases/latest"
+
+rewrite_sqlite_symbols() {
+  local in_file="$1"
+  local out_file
+  out_file="$(mktemp "$TMP_DIR/$(basename "$in_file").XXXXXX")"
+
+  perl -pe '
+    s/\bsqlite3/mc_sqlite3/g;
+    s/mc_sqlite3mc_amalgamation\./sqlite3mc_amalgamation./g;
+    s/mc_sqlite3ext\.h/sqlite3ext.h/g;
+    s/mc_sqlite3\.h/sqlite3.h/g;
+  ' "$in_file" > "$out_file"
+
+  mv "$out_file" "$in_file"
+}
 
 echo "Fetching latest release metadata for $OWNER_REPO..."
 if [ -n "${GITHUB_TOKEN:-}" ]; then
@@ -82,9 +100,6 @@ if [ "${#amalg_entries[@]}" -eq 1 ] && [ -d "${amalg_entries[0]}" ]; then
 else
   cp -R "$TMP_DIR/amalgamation"/. "$AMALG_DIR"/
 fi
-
-rm -f "$AMALG_DIR/shell3mc_amalgamation.c"
-
 unzip -q "$TMP_DIR/bindings.zip" -d "$TMP_DIR"
 SRC="$TMP_DIR/SQLite_Android_Bindings"
 JAVA_SOURCE_DIR="$SRC/sqlite3/src/main/java/org/sqlite"
@@ -122,9 +137,24 @@ done < <(
     ! -name 'sqlite3.c' \
     ! -name 'sqlite3.cpp' \
     ! -name 'sqlite3.h' \
-    ! -name 'shell3mc_amalgamation.c' \
     -print0
 )
+
+echo "Rewriting bundled SQLite symbols to mc_sqlite3*..."
+transform_files=()
+while IFS= read -r -d '' source_file; do
+  if LC_ALL=C grep -q '\<sqlite3' "$source_file"; then
+    transform_files+=("$source_file")
+  fi
+done < <(
+  find "$AMALG_DIR" "$LETOS_NATIVE_C_DIR" -type f \
+    \( -name '*.c' -o -name '*.cpp' -o -name '*.h' \) \
+    -print0
+)
+
+for source_file in "${transform_files[@]}"; do
+  rewrite_sqlite_symbols "$source_file"
+done
 
 echo "SQLite Android Bindings installed into:"
 echo "  - $JAVA_ORG_DIR/sqlite"

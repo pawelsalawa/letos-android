@@ -46,9 +46,9 @@ static void nativeGetPagerStats(JNIEnv *env, jobject clazz, jobject statsObj)
     int largestMemAlloc;
     int unused;
 
-    sqlite3_status(SQLITE_STATUS_MEMORY_USED, &memoryUsed, &unused, 0);
-    sqlite3_status(SQLITE_STATUS_MALLOC_SIZE, &unused, &largestMemAlloc, 0);
-    sqlite3_status(SQLITE_STATUS_PAGECACHE_OVERFLOW, &pageCacheOverflow, &unused, 0);
+    mc_sqlite3_status(SQLITE_STATUS_MEMORY_USED, &memoryUsed, &unused, 0);
+    mc_sqlite3_status(SQLITE_STATUS_MALLOC_SIZE, &unused, &largestMemAlloc, 0);
+    mc_sqlite3_status(SQLITE_STATUS_PAGECACHE_OVERFLOW, &pageCacheOverflow, &unused, 0);
     env->SetIntField(statsObj, gSQLiteDebugPagerStatsClassInfo.memoryUsed, memoryUsed);
     env->SetIntField(statsObj, gSQLiteDebugPagerStatsClassInfo.pageCacheOverflow,
             pageCacheOverflow);

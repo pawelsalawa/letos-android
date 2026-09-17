@@ -17,7 +17,8 @@ ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 LETOS_ROOT="$ROOT_DIR/LetosRemoteProject"
 AMALG_DIR="$LETOS_ROOT/sqlite3mc/amalgamation"
 SQLITE3MC_DIR="$LETOS_ROOT/sqlite3mc"
-OUT_DIR="$LETOS_ROOT/sqlite3mc/lib"
+LIB_OUT_DIR="$LETOS_ROOT/sqlite3mc/lib"
+BIN_OUT_DIR="$LETOS_ROOT/sqlite3mc/bin"
 
 if [ ! -d "$AMALG_DIR" ]; then
   echo "Amalgamation directory not found: $AMALG_DIR" >&2
@@ -25,8 +26,8 @@ if [ ! -d "$AMALG_DIR" ]; then
   exit 3
 fi
 
-rm -rf "$OUT_DIR"
-mkdir -p "$OUT_DIR"
+rm -rf "$LIB_OUT_DIR" "$BIN_OUT_DIR"
+mkdir -p "$LIB_OUT_DIR" "$BIN_OUT_DIR"
 
 DEFAULT_ARCHS=("armeabi-v7a" "arm64-v8a" "x86" "x86_64")
 if [ -n "${1:-}" ]; then
@@ -69,6 +70,7 @@ CFLAGS="-O2 \
         -DSQLITE_THREADSAFE=1 \
         -DSQLITE_EXTRA_INIT=letosSqliteExtraInit"
 LDFLAGS="-shared -Wl,-soname,libsqliteX.so"
+EXEC_LDFLAGS="-fPIE -pie"
 CXX_STDLIB_FLAGS="-static-libstdc++"
 ANDROID_LIBS="-llog"
 
@@ -119,7 +121,6 @@ for arch in "${ARCHS[@]}"; do
   mapfile -t source_files < <(
     find amalgamation $LETOS_ROOT/letosremote/src/main/c -type f \
       \( -name '*.c' -o -name '*.cpp' \) \
-      ! -name 'shell3mc_amalgamation.c' \
       ! -name 'sqlite3.c' \
       | sort
   )
@@ -128,9 +129,44 @@ for arch in "${ARCHS[@]}"; do
     exit 7
   fi
 
-  object_files=()
+  shell_source=""
+  library_source_files=()
   for source_file in "${source_files[@]}"; do
-    object_file="$(basename "${source_file%.*}").o"
+    if [ "$(basename "$source_file")" = "shell3mc_amalgamation.c" ]; then
+      shell_source="$source_file"
+    else
+      library_source_files+=("$source_file")
+    fi
+  done
+
+  if [ -z "$shell_source" ]; then
+    echo "shell3mc_amalgamation.c not found. Run ./update_mc.sh first." >&2
+    exit 8
+  fi
+
+  object_files=()
+  shell_object_file=""
+  COMPILED_OBJECT_FILE=""
+  compile_source() {
+    local source_file="$1"
+    local object_rel
+    local object_file
+    local -a compile_flags
+
+    case "$source_file" in
+      "$BUILD_DIR"/*)
+        object_rel="${source_file#"$BUILD_DIR"/}"
+        ;;
+      "$LETOS_ROOT"/*)
+        object_rel="${source_file#"$LETOS_ROOT"/}"
+        ;;
+      *)
+        object_rel="$(basename "$source_file")"
+        ;;
+    esac
+
+    object_file="obj/${object_rel%.*}.o"
+    mkdir -p "$(dirname "$object_file")"
     compile_flags=("${INCLUDE_FLAGS[@]}")
     case "$source_file" in
       *.cpp)
@@ -145,19 +181,34 @@ for arch in "${ARCHS[@]}"; do
         "$CC" $CFLAGS "${compile_flags[@]}" -c "$source_file" -o "$object_file"
         ;;
     esac
-    object_files+=("$object_file")
+
+    COMPILED_OBJECT_FILE="$object_file"
+  }
+
+  for source_file in "${library_source_files[@]}"; do
+    compile_source "$source_file"
+    object_files+=("$COMPILED_OBJECT_FILE")
   done
 
   echo "Linking libsqliteX.so"
   "$CXX" $LDFLAGS $CXX_STDLIB_FLAGS "${object_files[@]}" $ANDROID_LIBS -o libsqliteX.so
   "$STRIP" libsqliteX.so
 
-  mkdir -p "$OUT_DIR/$arch"
-  mv libsqliteX.so "$OUT_DIR/$arch/"
+  compile_source "$shell_source"
+  shell_object_file="$COMPILED_OBJECT_FILE"
+
+  echo "Linking sqlite3"
+  "$CXX" $EXEC_LDFLAGS $CXX_STDLIB_FLAGS "${object_files[@]}" "$shell_object_file" $ANDROID_LIBS -o sqlite3
+  "$STRIP" sqlite3
+
+  mkdir -p "$LIB_OUT_DIR/$arch" "$BIN_OUT_DIR/$arch"
+  mv libsqliteX.so "$LIB_OUT_DIR/$arch/"
+  mv sqlite3 "$BIN_OUT_DIR/$arch/"
 
   popd >/dev/null
   rm -rf "$BUILD_DIR"
-  echo "Built $OUT_DIR/$arch/libsqliteX.so"
+  echo "Built $LIB_OUT_DIR/$arch/libsqliteX.so"
+  echo "Built $BIN_OUT_DIR/$arch/sqlite3"
 done
 
-echo "All builds finished. Libraries placed in $OUT_DIR"
+echo "All builds finished. Libraries placed in $LIB_OUT_DIR and binaries in $BIN_OUT_DIR"
